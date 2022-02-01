@@ -29,7 +29,6 @@ impl Parse for InputDir {
 pub fn embed_dir(input: TokenStream) -> TokenStream {
 	let input_dir: InputDir = parse_macro_input!(input as InputDir);
 	let name = input_dir.name;
-	let hm_name = Ident::new(&(name.to_string() + "_FILES_COLLECTION"), Span::call_site());
 	let dir_path = input_dir.path;
 
 	let lits = dir_iter::DirIter::new(&dir_path)
@@ -51,23 +50,17 @@ pub fn embed_dir(input: TokenStream) -> TokenStream {
 		})
 		.map(|(lit, lit_absolute)| {
 			quote! {
-				hm.insert(#lit, include_str!(#lit_absolute));
+				hm.insert(#lit, include_bytes!(#lit_absolute).as_slice());
 			}
 		})
 		.collect::<Vec<_>>();
 
 	let output = quote! {
 		lazy_static::lazy_static! {
-			pub static ref #hm_name: in_memory_files::FilesCollection = {
-				let mut hm = in_memory_files::FilesCollection::new();
+			pub static ref #name: ::std::collections::HashMap<&'static str, &'static [u8]> = {
+				let mut hm = ::std::collections::HashMap::new();
 				#(#lits)*
 				hm
-			};
-		}
-
-		lazy_static::lazy_static! {
-			pub static ref #name: in_memory_files::Files = {
-				in_memory_files::Files(&#hm_name)
 			};
 		}
 	};
